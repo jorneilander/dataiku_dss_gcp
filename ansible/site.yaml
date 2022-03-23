@@ -1,0 +1,19 @@
+---
+- hosts: all
+  tags: ["always"]
+  tasks:
+    - name: "Import vault(s)"
+      ansible.builtin.include_vars:
+        file: "{{ item }}"
+      loop:
+        - "vars/vault_dss.yaml"
+      no_log: true
+
+- hosts: dss
+  tags: ["dss"]
+  tasks:
+    - name: "[Site] - Install DSS"
+      ansible.builtin.include_role:
+        name: "dataiku-dss"
+      vars:
+        dss_update_dataiku_azorion_com: true

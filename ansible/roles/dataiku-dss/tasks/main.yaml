@@ -1,0 +1,28 @@
+---
+- name: "[Main] - Run Terraform to get 'outputs'"
+  ansible.builtin.include_tasks: "terraform.yaml"
+
+- name: "[Main] - Update DNS entry"
+  ansible.builtin.include_tasks: "leaseweb_dns.yaml"
+  when: dss_update_dataiku_azorion_com
+
+- name: "[Main] - Execute prerequisites"
+  ansible.builtin.include_tasks: "prerequisites.yaml"
+
+- name: "[Main] - Install Docker"
+  ansible.builtin.include_tasks: "docker.yaml"
+
+- name: "[Main] - Install DSS"
+  ansible.builtin.include_tasks: "dss_installation.yaml"
+
+- name: "[Main] - Apply GCS connection"
+  ansible.builtin.include_tasks: "connection_gcs.yaml"
+
+- name: "[Main] - Apply GKE connection"
+  ansible.builtin.include_tasks: "connection_gke.yaml"
+
+- name: "[Main] - Apply UIF"
+  ansible.builtin.include_tasks: "uif.yaml"
+
+- name: "[Main] - Apply CentOS bugfix(es)"
+  ansible.builtin.include_tasks: "centos_bugfix.yaml"

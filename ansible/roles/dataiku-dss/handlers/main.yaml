@@ -1,0 +1,10 @@
+---
+- name: "restart_dss"
+  become: true
+  ansible.builtin.systemd:
+    name: "dataiku"
+    state: restarted
+
+- name: "restart_host"
+  become: true
+  ansible.builtin.reboot:

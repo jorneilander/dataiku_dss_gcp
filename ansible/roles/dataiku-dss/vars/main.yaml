@@ -1,0 +1,13 @@
+---
+dss_version: "10.0.5"
+dss_api_version: "10.0"
+dss_service_user: "dssuser"
+dss_install_dir_location: /opt/dataiku
+dss_data_dirs_location: /data/dataiku
+dss_data_dirs_disk: /dev/disk/by-id/google-dss_data_dir
+dss_node_poll_fqdn: true # If true, use ansible_fqdn else use ansible_host
+dss_port: 10000
+dss_spark_version: "3.1.2"
+dss_installation_dir: "{{ dss_install_dir_location }}/dataiku-dss-{{ dss_version }}"
+
+dss_update_dataiku_azorion_com: false

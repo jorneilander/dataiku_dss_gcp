@@ -1,0 +1,6 @@
+---
+- name: "[Terraform] - Run Terraform"
+  delegate_to: localhost
+  community.general.terraform:
+    project_path: ../terraform/cluster
+  register: terraform_output

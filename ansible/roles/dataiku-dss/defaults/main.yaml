@@ -1,0 +1,33 @@
+dss_cdn_url: "https://cdn.downloads.dataiku.com/public/studio/"
+dss_dssadmin_path: "{{ dss_data_dirs_location }}/bin/dssadmin"
+dss_uif_groups:
+  - data_team
+  - example_team
+
+dss_group_example_team:
+  name: example_team
+  description: Default group for read/write access to projects
+  sourceType: LOCAL
+  admin: false
+  mayManageUDM: false
+  mayCreateProjects: true
+  mayCreateProjectsFromMacros: false
+  mayCreateProjectsFromTemplates: false
+  mayCreateProjectsFromDataikuApps: false
+  mayWriteUnsafeCode: true
+  mayWriteSafeCode: true
+  mayCreateAuthenticatedConnections: false
+  mayCreateCodeEnvs: false
+  mayCreateClusters: false
+  mayDevelopPlugins: false
+  mayEditLibFolders: false
+  mayManageCodeEnvs: false
+  mayManageClusters: false
+  mayViewIndexedHiveConnections: false
+  mayCreatePublishedAPIServices: false
+  mayCreatePublishedProjects: false
+  mayWriteInRootProjectFolder: true
+  mayCreateActiveWebContent: true
+  mayCreateWorkspaces: false
+  mayShareToWorkspaces: true
+  canObtainAPITicketFromCookiesForGroupsRegex: ""

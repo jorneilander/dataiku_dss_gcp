@@ -1,0 +1,137 @@
+---
+- name: "[GKE] - Install packages"
+  become: true
+  ansible.builtin.yum:
+    name: "{{ packages_gke }}"
+    state: installed
+  vars:
+    packages_gke:
+      - "google-cloud-sdk"
+      - "kubectl"
+
+# I need a quick way to get kubeconfig in the correct location...
+- name: Get kubeconfig for our cluster
+  become: true
+  become_user: "{{ dss_service_user }}"
+  ansible.builtin.command:
+    cmd: |
+      gcloud container clusters
+      get-credentials {{ terraform_output.outputs.gke_dss_cluster_name.value }}
+      --zone {{ terraform_output.outputs.gcp_zone.value }}
+    creates: "/home/{{ dss_service_user }}/.kube/config"
+
+- name: Read current configuration
+  no_log: true
+  become: true
+  become_user: "{{ dss_service_user }}"
+  ansible.builtin.slurp:
+    path: "{{ dss_data_dirs_location }}/config/general-settings.json"
+  register: dss_general_settings_json_raw
+
+- name: Set containerSettings fact
+  ansible.builtin.set_fact:
+    dss_general_settings_json: "{{ dss_general_settings_json_raw.content | b64decode | from_json }}"
+    dss_general_settings_container_settings:
+      containerSettings:
+        executionConfigs:
+          - name: dss
+            type: KUBERNETES
+            properties: []
+            usableBy: ALL
+            allowedGroups: []
+            dockerNetwork: host
+            dockerResources: []
+            kubernetesNamespace: dss-ns-${dssUserLogin}
+            kubernetesResources:
+              memRequestMB: -1
+              memLimitMB: -1
+              cpuRequest: -1
+              cpuLimit: -1
+              customLimits: []
+              customRequests: []
+            hostPathVolumes: []
+            isFinal: false
+            ensureNamespaceCompliance: true
+            createNamespace: true
+            baseImageType: EXEC
+            repositoryURL: "{{ terraform_output.outputs.image_registry_url.value }}"
+            prePushMode: NONE
+            dockerTLSVerify: false
+        defaultWebappsK8SExposition:
+          type: port_forward
+          params: {}
+        executionConfigsGenericOverrides:
+          properties: []
+          usableBy: ALL
+          allowedGroups: []
+          dockerNetwork: host
+          dockerResources: []
+          kubernetesResources:
+            memRequestMB: -1
+            memLimitMB: -1
+            cpuRequest: -1
+            cpuLimit: -1
+            customLimits: []
+            customRequests: []
+          hostPathVolumes: []
+          isFinal: false
+          ensureNamespaceCompliance: false
+          createNamespace: false
+          baseImageType: EXEC
+          prePushMode: NONE
+          dockerTLSVerify: false
+    dss_general_settings_spark_kubernetes_settings:
+      managedKubernetes: true
+      managedNamespace: dss-ns-${dssUserLogin}
+      authenticationMode: DYNAMIC_SERVICE_ACCOUNT
+      ensureNamespaceCompliance: true
+      createNamespace: true
+      baseImageType: SPARK
+      repositoryURL: "{{ terraform_output.outputs.image_registry_url.value }}"
+      prePushMode: NONE
+      dockerTLSVerify: false
+
+- name: set fact
+  ansible.builtin.set_fact:
+    dss_general_settings_container_new: "{{ dss_general_settings_json | combine (dss_general_settings_container_settings, recursive=true) }}"
+
+- name: "[UIF] - Add group 'example_team' to users.json fact"
+  ansible.builtin.set_fact:
+    dss_general_settings_container_new: >-
+      {%- set _ = dss_general_settings_container_new.sparkSettings.executionConfigs.0.__setitem__("kubernetesSettings", dss_general_settings_spark_kubernetes_settings) -%}
+      {{ dss_general_settings_container_new }}
+
+- name: Copy over general-settings.json
+  become: true
+  become_user: "{{ dss_service_user }}"
+  ansible.builtin.copy:
+    dest: "{{ dss_data_dirs_location }}/config/general-settings.json"
+    backup: true
+    content: "{{ dss_general_settings_container_new | to_nice_json }}"
+    mode: 0600
+
+- name: Set target host for GKE
+  become: true
+  become_user: "{{ dss_service_user }}"
+  ansible.builtin.lineinfile:
+    path: /data/dataiku/bin/env-site.sh
+    line: "export DKU_BACKEND_EXT_HOST={{ terraform_output.outputs.dss_internal_ip.value }}"
+
+# !TODO: Fix these `changed_when`, we should be able to check using the command output or similar...
+- name: "[GKE] - Build 'container-exec' base image"
+  become: true
+  become_user: "{{ dss_service_user }}"
+  changed_when: false
+  ansible.builtin.command:
+    cmd: >-
+      {{ dss_data_dirs_location }}/bin/dssadmin build-base-image
+      --type container-exec
+
+- name: "[GKE] - Build 'spark' base image"
+  become: true
+  become_user: "{{ dss_service_user }}"
+  changed_when: false
+  ansible.builtin.command:
+    cmd: >-
+      {{ dss_data_dirs_location }}/bin/dssadmin build-base-image
+      --type spark

@@ -1,0 +1,66 @@
+---
+- name: Read current configuration
+  no_log: true
+  become: true
+  become_user: "{{ dss_service_user }}"
+  ansible.builtin.slurp:
+    path: "{{ dss_data_dirs_location }}/config/connections.json"
+
+  register: dss_connections_config_json_raw
+
+- name: Set connections variable
+  no_log: true
+  ansible.builtin.set_fact:
+    dss_connections_config_json: "{{ dss_connections_config_json_raw.content | b64decode | from_json }}"
+    sa_google_storage_private_key: "{{ terraform_output.outputs.sa_google_storage_private_key.value | b64decode | trim | string }}"
+    dss_connections_gcs_config:
+      connections:
+        GCS:
+          params:
+            authType: KEYPAIR
+            projectId: "candidate-emea-jeilander "
+            appSecretContent: '{{ terraform_output.outputs.sa_google_storage_private_key.value | b64decode | trim | string  }}'
+            defaultManagedBucket: dss-storage-bucket
+            defaultManagedPath: /dataiku
+            hdfsInterface: NONE
+            metastoreSynchronizationMode: NO_SYNC
+            namingRule: {}
+            dkuProperties: []
+          type: GCS
+          creationTag:
+            versionNumber: 0
+            lastModifiedBy:
+              login: admin
+            lastModifiedOn: 1648311293761
+          allowWrite: true
+          allowManagedDatasets: true
+          allowManagedFolders: true
+          useGlobalProxy: false
+          maxActivities: 0
+          customFields: {}
+          credentialsMode: GLOBAL
+          customBasicConnectionCredentialProviderParams: []
+          usableBy: ALL
+          allowedGroups: []
+          detailsReadability:
+            readableBy: NONE
+            allowedGroups: []
+          indexingSettings:
+            indexIndices: false
+            indexForeignKeys: false
+            indexSystemTables: false
+
+- name: Set fact
+  no_log: true
+  ansible.builtin.set_fact:
+    dss_connections_merged: "{{ dss_connections_config_json | combine (dss_connections_gcs_config, recursive=true) }}"
+
+- name: Copy over connections.json
+  no_log: true
+  become: true
+  become_user: "{{ dss_service_user }}"
+  ansible.builtin.copy:
+    dest: /data/dataiku/config/connections.json
+    backup: true
+    content: "{{ dss_connections_merged | to_nice_json }}"
+    mode: 0644

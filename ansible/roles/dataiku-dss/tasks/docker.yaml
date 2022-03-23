@@ -1,0 +1,85 @@
+---
+- name: "[Docker] - Uninstall old packages"
+  become: true
+  become_user: root
+  ansible.builtin.yum:
+    name: "{{ packages_docker_uninstall }}"
+    state: removed
+  vars:
+    packages_docker_uninstall:
+      - "docker"
+      - "docker-client"
+      - "docker-client-latest"
+      - "docker-common"
+      - "docker-latest"
+      - "docker-latest-logrotate"
+      - "docker-logrotate"
+      - "docker-engine"
+
+- name: "[Docker] - Add signing key"
+  become: true
+  become_user: root
+  ansible.builtin.rpm_key:
+    key: "https://download.docker.com/linux/rhel/gpg"
+    state: present
+
+- name: "[Docker] - Add yum repository"
+  become: true
+  ansible.builtin.yum_repository:
+    name: Docker
+    description: "Docker CE Stable - $basearch"
+    baseurl: "https://download.docker.com/linux/centos/$releasever/$basearch/stable"
+    enabled: true
+    gpgcheck: true
+    gpgkey: "https://download.docker.com/linux/rhel/gpg"
+
+- name: "[Docker] - Install packages"
+  become: true
+  ansible.builtin.yum:
+    name: "{{ packages_docker }}"
+    state: installed
+    update_cache: true
+  vars:
+    packages_docker:
+      - "docker-ce"
+      - "docker-ce-cli"
+      - "containerd.io"
+
+- name: "[Docker] - Enable docker service"
+  become: true
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: true
+
+- name: "[Docker] - Add '{{ dss_service_user }}' to group 'docker'"
+  become: true
+  ansible.builtin.user:
+    name: "{{ dss_service_user }}"
+    state: present
+    groups: 'docker'
+
+- name: "[Docker] - Create docker config dir"
+  become: true
+  become_user: "{{ dss_service_user }}"
+  ansible.builtin.command:
+    cmd: mkdir -p ~/.docker
+  changed_when: false
+
+- name: "[Docker] - Place docker config"
+  become: true
+  become_user: "{{ dss_service_user }}"
+  ansible.builtin.copy:
+    dest: "/home/{{ dss_service_user }}/.docker/config.json"
+    mode: 0755
+    content: |
+      {
+        "credHelpers": {
+          "gcr.io": "gcloud",
+          "us.gcr.io": "gcloud",
+          "eu.gcr.io": "gcloud",
+          "asia.gcr.io": "gcloud",
+          "staging-k8s.gcr.io": "gcloud",
+          "marketplace.gcr.io": "gcloud"
+        }
+      }

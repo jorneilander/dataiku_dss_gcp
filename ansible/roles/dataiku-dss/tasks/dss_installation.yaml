@@ -1,0 +1,103 @@
+---
+- name: Download DSS
+  become: true
+  become_user: "{{ dss_service_user }}"
+  ansible.builtin.get_url:
+    url: "{{ dss_cdn_url }}/{{ dss_version }}/{{ item }}.tar.gz"
+    dest: "{{ dss_install_dir_location }}/{{ item }}.tar.gz"
+    mode: 0660
+  tags: [setup, dss-setup]
+  loop:
+    - "dataiku-dss-{{ dss_version }}"
+    - "dataiku-dss-hadoop-standalone-libs-generic-hadoop3-{{ dss_version }}"
+    - "dataiku-dss-spark-standalone-{{ dss_version }}-{{ dss_spark_version }}-generic-hadoop3"
+
+- name: Unarchive DSS
+  become: true
+  become_user: "{{ dss_service_user }}"
+  ansible.builtin.unarchive:
+    src: "{{ dss_install_dir_location }}/{{ item }}.tar.gz"
+    dest: "{{ dss_install_dir_location }}"
+    creates: "{{ dss_install_dir_location }}/{{ item }}"
+    remote_src: true
+  tags: [setup, dss-setup]
+  loop:
+    - "dataiku-dss-{{ dss_version }}"
+
+- name: Install DSS dependencies
+  become: true
+  ansible.builtin.shell:
+    cmd: >-
+      {{ dss_installation_dir }}/scripts/install/install-deps.sh -yes 2>&1 > /tmp/dss-install-deps.log
+      &&
+      touch {{ dss_installation_dir }}/scripts/install/DEPS-INSTALLED
+    creates: "{{ dss_installation_dir }}/scripts/install/DEPS-INSTALLED"
+  tags: [setup, dss-setup]
+
+- name: Run Installer
+  become: true
+  become_user: "{{ dss_service_user }}"
+  ansible.builtin.shell:
+    cmd: >-
+      {{ dss_installation_dir }}/installer.sh
+      -d {{ dss_data_dirs_location }}
+      -p {{ dss_port }}
+      -P python3.6
+      &&
+      touch {{ dss_install_dir_location }}/INSTALLED
+    creates: "{{ dss_install_dir_location }}/INSTALLED"
+
+- name: Install Dataiku python API
+  become: true
+  ansible.builtin.pip:
+    executable: "{{ dss_data_dirs_location }}/bin/pip"
+    name: "{{ item }}"
+    state: present
+  loop:
+    - dataiku-api-client
+    - watermark
+    - pandas_profiling
+
+- name: Place licence file
+  no_log: true
+  become: true
+  become_user: "{{ dss_service_user }}"
+  ansible.builtin.copy:
+    dest: /data/dataiku/config/license.json
+    mode: 0622
+    content: "{{ dss_license_json }}"
+
+- name: Run boot
+  become: true
+  ansible.builtin.command:
+    cmd: >-
+      {{ dss_installation_dir }}/scripts/install/install-boot.sh
+      {{ dss_data_dirs_location }}
+      {{ dss_service_user }}
+    creates: /etc/init.d/dataiku
+
+- name: Enable and start DSS service
+  become: true
+  ansible.builtin.systemd:
+    name: dataiku
+    state: started
+    enabled: true
+
+- name: Install Hadoop integration
+  become: true
+  become_user: "{{ dss_service_user }}"
+  ansible.builtin.command:
+    cmd: >-
+      {{ dss_dssadmin_path }} install-hadoop-integration
+      -standaloneArchive {{ dss_install_dir_location }}/dataiku-dss-hadoop-standalone-libs-generic-hadoop3-{{ dss_version }}.tar.gz
+    creates: "{{ dss_data_dirs_location }}/bin/env-hadoop.sh"
+
+- name: Install Spark integration
+  become: true
+  become_user: "{{ dss_service_user }}"
+  ansible.builtin.command:
+    cmd: >-
+      {{ dss_dssadmin_path }} install-spark-integration
+      -standaloneArchive {{ dss_install_dir_location }}/dataiku-dss-spark-standalone-{{ dss_version }}-3.1.2-generic-hadoop3.tar.gz
+      -forK8S
+    creates: "{{ dss_data_dirs_location }}/bin/env-spark.sh"

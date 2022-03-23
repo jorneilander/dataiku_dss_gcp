@@ -1,0 +1,127 @@
+---
+- name: "[UIF] - Add groups"
+  become: true
+  ansible.builtin.group:
+    name: "{{ item }}"
+  loop: "{{ dss_uif_groups }}"
+
+- name: "[UIF] - Create users"
+  become: true
+  ansible.builtin.user:
+    name: "{{ item }}"
+    shell: "/bin/bash"
+    create_home: true
+    groups: "{{ dss_uif_groups }}"
+  loop:
+    - "jane.example"
+    - "bob.example"
+
+- name: "[UIF] - Read users.json"
+  no_log: true
+  become: true
+  become_user: "{{ dss_service_user }}"
+  ansible.builtin.slurp:
+    path: "{{ dss_data_dirs_location }}/config/users.json"
+  register: users_json_raw
+
+- name: "[UIF] - Set users.json fact"
+  no_log: true
+  ansible.builtin.set_fact:
+    users_json: "{{ users_json_raw.content | b64decode | from_json }}"
+
+# Add jane.example to users.json
+
+- name: "[UIF] - Set user 'jane.example' fact"
+  ansible.builtin.set_fact:
+    users_json_jane: "{{ users_json | json_query(query) }}"
+  vars:
+    query: "users[?login=='jane.example']"
+
+- name: "[UIF] - Add user 'jane.example' to users.json fact"
+  ansible.builtin.set_fact:
+    users_json: >-
+      {%- set _ = users_json.users.append(dss_user_jane) -%}
+      {{ users_json }}
+  when: users_json_jane | length == 0
+
+# Add bob.example to users.json
+
+- name: "[UIF] - Set user 'bob.example' fact"
+  ansible.builtin.set_fact:
+    users_json_bob: "{{ users_json | json_query(query) }}"
+  vars:
+    query: "users[?login=='bob.example']"
+
+- name: "[UIF] - Add user 'bob.example' to users.json fact"
+  ansible.builtin.set_fact:
+    users_json: >-
+      {%- set _ = users_json.users.append(dss_user_bob) -%}
+      {{ users_json }}
+  when: users_json_bob | length == 0
+
+# Add example_team to users.json
+
+- name: "[UIF] - Set group 'example_team' fact"
+  ansible.builtin.set_fact:
+    users_json_example_team: "{{ users_json | json_query(query) }}"
+  vars:
+    query: "groups[?name=='example_team']"
+
+- name: "[UIF] - Add group 'example_team' to users.json fact"
+  ansible.builtin.set_fact:
+    users_json: >-
+      {%- set _ = users_json.groups.append(dss_group_example_team) -%}
+      {{ users_json }}
+  when: users_json_example_team | length == 0
+
+# Place final users.json
+
+- name: "[UIF] - Place users.json"
+  become: true
+  become_user: "{{ dss_service_user }}"
+  ansible.builtin.copy:
+    dest: "{{ dss_data_dirs_location }}/config/users.json"
+    backup: true
+    content: "{{ users_json | to_nice_json }}"
+    mode: 0600
+  notify: restart_dss
+
+- name: "[UIF] - Check if impersonation is installed"
+  become: true
+  become_user: "{{ dss_service_user }}"
+  ansible.builtin.stat:
+    path: "{{ dss_data_dirs_location }}/IMPERSONATION-INSTALLED"
+  register: impersonation_installed
+
+- name: "[UIF] - Stop DSS"
+  become: true
+  ansible.builtin.service:
+    name: dataiku
+    state: stopped
+  when: impersonation_installed.stat.islnk is not defined
+
+- name: "[UIF] - Run 'install impersonation'"
+  become: true
+  ansible.builtin.shell:
+    cmd: >-
+      {{ dss_data_dirs_location }}/bin/dssadmin install-impersonation {{ dss_service_user }}
+      &&
+      touch {{ dss_data_dirs_location }}/IMPERSONATION-INSTALLED
+    creates: "{{ dss_data_dirs_location }}/IMPERSONATION-INSTALLED"
+  notify: restart_dss
+
+- name: "[UIF] - Find security-config.ini"
+  become: true
+  ansible.builtin.find:
+    paths: /etc/dataiku-security
+    patterns: "*.ini"
+    recurse: true
+  register: find_security_config_ini
+
+- name: "[UIF] - Place security-config.ini"
+  become: true
+  ansible.builtin.template:
+    src: security-config.ini.j2
+    dest: "{{ find_security_config_ini.files[0].path }}"
+    mode: 0600
+  notify: restart_dss

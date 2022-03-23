@@ -1,0 +1,5 @@
+---
+plugin: gcp_compute
+projects:
+  - candidate-emea-jeilander
+auth_kind: serviceaccount

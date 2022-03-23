@@ -1,0 +1,109 @@
+---
+- name: "[Prerequisites] - Set per-host facts"
+  ansible.builtin.set_fact:
+    dss_node_hostname: "{{ ansible_fqdn if dss_node_poll_fqdn else ansible_host }}"
+  tags: [setup, dss-setup, dss]
+
+- name: "[Prerequisites] - Disable SELinux"
+  become: true
+  selinux:
+    state: disabled
+  tags: [setup]
+  notify:
+    - "restart_host"
+
+- name: "[Prerequisites] - Increase system limits"
+  become: true
+  pam_limits:
+    domain: "{{ dss_service_user }}"
+    limit_item: "{{ item }}"
+    limit_type: "-"
+    value: 65536
+  loop:
+    - nofile
+    - nproc
+  tags: [setup]
+
+- name: "[Prerequisites] - Update all packages"
+  become: true
+  ansible.builtin.yum:
+    name: "*"
+    state: latest
+    update_cache: true
+  tags: [setup]
+
+- name: "[Prerequisites] - Install required packages"
+  become: true
+  ansible.builtin.yum:
+    name: "{{ packages }}"
+  vars:
+    packages:
+      - acl
+      - expat
+      - git
+      - nginx
+      - unzip
+      - zip
+      - ncurses-compat-libs
+      - java-1.8.0-openjdk
+      - python2
+      - python36
+      - freetype
+      - libgfortran
+      - libgomp
+      - python2-devel
+      - python36-devel
+      - "google-cloud-sdk"
+      - "kubectl"
+      - "epel-release"
+
+- name: "[Prerequisites] - Install optional packages from epel"
+  become: true
+  ansible.builtin.yum:
+    name: "{{ packages }}"
+  vars:
+    packages:
+      - "htop"
+
+
+# User stuff
+
+- name: "[Prerequisites] - Create '{{ dss_service_user }}' user"
+  become: true
+  ansible.builtin.user:
+    name: "{{ dss_service_user }}"
+    state: present
+  tags: [setup, dss-setup]
+
+- name: "[Prerequisites] - Format DSS Data filesystem"
+  become: true
+  community.general.filesystem:
+    dev: "{{ dss_data_dirs_disk }}"
+    fstype: ext4
+
+- name: "[Prerequisites] - Mount DSS Data filesystem"
+  become: true
+  ansible.posix.mount:
+    fstype: ext4
+    path: "/data"
+    src: "{{ dss_data_dirs_disk }}"
+    opts: "defaults,acl"
+    state: mounted
+
+- name: "[Prerequisites] - Create public directories"
+  become: true
+  ansible.builtin.file:
+    path: "{{ dss_install_dir_location }}"
+    state: directory
+    owner: "{{ dss_service_user }}"
+    mode: 0711
+  tags: [setup, dss-setup]
+
+- name: "[Prerequisites] - Create private directories"
+  become: true
+  ansible.builtin.file:
+    path: "{{ dss_data_dirs_location }}"
+    state: directory
+    owner: "{{ dss_service_user }}"
+    mode: 0711
+  tags: [setup, dss-setup]
