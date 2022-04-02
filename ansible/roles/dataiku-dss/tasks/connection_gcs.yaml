@@ -2,26 +2,24 @@
 - name: Read current configuration
   no_log: true
   become: true
-  become_user: "{{ dss_service_user }}"
+  become_user: "{{ dss_service_username }}"
   ansible.builtin.slurp:
-    path: "{{ dss_data_dirs_location }}/config/connections.json"
-
-  register: dss_connections_config_json_raw
+    path: "{{ dss_config_connections_json_path }}"
+  register: dss_config_connections_json_raw
 
 - name: Set connections variable
   no_log: true
   ansible.builtin.set_fact:
-    dss_connections_config_json: "{{ dss_connections_config_json_raw.content | b64decode | from_json }}"
-    sa_google_storage_private_key: "{{ terraform_output.outputs.sa_google_storage_private_key.value | b64decode | trim | string }}"
+    dss_connections_config_json: "{{ dss_config_connections_json_raw.content | b64decode | from_json }}"
     dss_connections_gcs_config:
       connections:
         GCS:
           params:
             authType: KEYPAIR
             projectId: "candidate-emea-jeilander "
-            appSecretContent: '{{ terraform_output.outputs.sa_google_storage_private_key.value | b64decode | trim | string  }}'
-            defaultManagedBucket: dss-storage-bucket
-            defaultManagedPath: /dataiku
+            appSecretContent: "{{ dss_gcs_private_key | string }}"
+            defaultManagedBucket: "{{ dss_gcs_bucket_name }}"
+            defaultManagedPath: "{{ dss_gcs_managed_path }}"
             hdfsInterface: NONE
             metastoreSynchronizationMode: NO_SYNC
             namingRule: {}
@@ -53,14 +51,14 @@
 - name: Set fact
   no_log: true
   ansible.builtin.set_fact:
-    dss_connections_merged: "{{ dss_connections_config_json | combine (dss_connections_gcs_config, recursive=true) }}"
+    dss_config_merged_connections_json: "{{ dss_connections_config_json | combine (dss_connections_gcs_config, recursive=true) }}"
 
 - name: Copy over connections.json
   no_log: true
   become: true
-  become_user: "{{ dss_service_user }}"
+  become_user: "{{ dss_service_username }}"
   ansible.builtin.copy:
-    dest: /data/dataiku/config/connections.json
+    dest: "{{ dss_config_connections_json_path }}"
     backup: true
-    content: "{{ dss_connections_merged | to_nice_json }}"
+    content: "{{ dss_config_merged_connections_json | to_nice_json }}"
     mode: 0644

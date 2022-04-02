@@ -4,7 +4,7 @@
 
 - name: "[Main] - Update DNS entry"
   ansible.builtin.include_tasks: "leaseweb_dns.yaml"
-  when: dss_update_dataiku_azorion_com
+  when: dss_leaseweb_update_dns_record
 
 - name: "[Main] - Execute prerequisites"
   ansible.builtin.include_tasks: "prerequisites.yaml"

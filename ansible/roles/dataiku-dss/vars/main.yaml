@@ -1,13 +1,65 @@
 ---
-dss_version: "10.0.5"
-dss_api_version: "10.0"
-dss_service_user: "dssuser"
-dss_install_dir_location: /opt/dataiku
-dss_data_dirs_location: /data/dataiku
-dss_data_dirs_disk: /dev/disk/by-id/google-dss_data_dir
-dss_node_poll_fqdn: true # If true, use ansible_fqdn else use ansible_host
-dss_port: 10000
-dss_spark_version: "3.1.2"
-dss_installation_dir: "{{ dss_install_dir_location }}/dataiku-dss-{{ dss_version }}"
+# DSS instance settings
+dss_service_username: "dssuser"
+dss_webui_port: 10000
+dss_license_json:
+dss_users:
+  - {
+    name: "Bob Example",
+    username: "bob.example",
+    password: "{{ dss_user_bob_password }}"
+  }
+  - {
+    name: "Jane Example",
+    username: "jane.example",
+    password: "{{ dss_user_jane_password }}"
+  }
 
-dss_update_dataiku_azorion_com: false
+dss_pip_additional_packages:
+  - "dataiku-api-client"
+  - "watermark"
+  - "pandas_profiling"
+
+## Versions
+dss_version: "10.0.5"
+dss_spark_version: "3.1.2"
+dss_python_default_version: "3.6"
+dss_python_supported_versions:
+  - "3.6"
+  - "3.9"
+
+## Language support
+dss_support_anaconda: false
+dss_support_r: true
+
+## System file/directory locations
+dss_install_target_dir: /opt/dataiku
+dss_data_dir: /data/dataiku
+dss_data_dir_disk: /dev/disk/by-id/google-dss_data_dir
+
+dss_yum_additional_packages:
+  - "htop"
+
+# GCP Settings
+dss_gcp_project_id: "candidate-emea-jeilander"
+dss_gcp_zone:
+
+## GCE
+dss_internal_ip:
+
+## GCS
+dss_gcs_private_key:
+dss_gcs_bucket_name:
+dss_gcs_managed_path: "/dataiku"
+
+## GKE & K8S
+dss_gke_cluster_name:
+dss_container_image_registry_url:
+dss_k8s_namespace_template: "dss-ns-${dssUserLogin}"
+
+# Public facing configuration
+dss_public_fqdn:
+dss_public_proxy_ip:
+
+dss_leaseweb_update_dns_record: false
+dss_leaseweb_api_key:

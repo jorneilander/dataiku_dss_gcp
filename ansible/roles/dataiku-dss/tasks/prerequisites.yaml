@@ -15,7 +15,7 @@
 - name: "[Prerequisites] - Increase system limits"
   become: true
   pam_limits:
-    domain: "{{ dss_service_user }}"
+    domain: "{{ dss_service_username }}"
     limit_item: "{{ item }}"
     limit_type: "-"
     value: 65536
@@ -68,42 +68,42 @@
 
 # User stuff
 
-- name: "[Prerequisites] - Create '{{ dss_service_user }}' user"
+- name: "[Prerequisites] - Create '{{ dss_service_username }}' user"
   become: true
   ansible.builtin.user:
-    name: "{{ dss_service_user }}"
+    name: "{{ dss_service_username }}"
     state: present
   tags: [setup, dss-setup]
 
 - name: "[Prerequisites] - Format DSS Data filesystem"
   become: true
   community.general.filesystem:
-    dev: "{{ dss_data_dirs_disk }}"
-    fstype: ext4
+    dev: "{{ dss_data_dir_disk }}"
+    fstype: "{{ dss_fs_data_type }}"
 
 - name: "[Prerequisites] - Mount DSS Data filesystem"
   become: true
   ansible.posix.mount:
-    fstype: ext4
-    path: "/data"
-    src: "{{ dss_data_dirs_disk }}"
+    fstype: "{{ dss_fs_data_type }}"
+    path: "{{ dss_fs_data_mount_path }}"
+    src: "{{ dss_data_dir_disk }}"
     opts: "defaults,acl"
     state: mounted
 
 - name: "[Prerequisites] - Create public directories"
   become: true
   ansible.builtin.file:
-    path: "{{ dss_install_dir_location }}"
+    path: "{{ dss_install_target_dir }}"
     state: directory
-    owner: "{{ dss_service_user }}"
+    owner: "{{ dss_service_username }}"
     mode: 0711
   tags: [setup, dss-setup]
 
 - name: "[Prerequisites] - Create private directories"
   become: true
   ansible.builtin.file:
-    path: "{{ dss_data_dirs_location }}"
+    path: "{{ dss_data_dir }}"
     state: directory
-    owner: "{{ dss_service_user }}"
+    owner: "{{ dss_service_username }}"
     mode: 0711
   tags: [setup, dss-setup]

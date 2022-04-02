@@ -9,11 +9,35 @@
         - "vars/vault_dss.yaml"
       no_log: true
 
-- hosts: dss
-  tags: ["dss"]
+- hosts: all
+  tasks:
+    - name: "[Terraform] - Run Terraform to gather outputs"
+      delegate_to: localhost
+      community.general.terraform:
+        project_path: ../terraform/cluster
+      register: terraform
+
+- hosts: all
   tasks:
     - name: "[Site] - Install DSS"
       ansible.builtin.include_role:
         name: "dataiku-dss"
       vars:
-        dss_update_dataiku_azorion_com: true
+        # Terraform filled keys
+        dss_container_image_registry_url: "{{ terraform.outputs.image_registry_url.value }}"
+        dss_gcp_project_id: "{{ terraform.outputs.gcp_project_id.value }}"
+        dss_gcp_zone: "{{ terraform.outputs.gcp_zone.value }}"
+        dss_gcs_bucket_name: "{{ terraform.outputs.gcs_bucket.value }}"
+        dss_gcs_private_key: "{{ terraform.outputs.sa_google_storage_private_key.value | b64decode | trim | string }}"
+        dss_gke_cluster_name: "{{ terraform.outputs.gke_dss_cluster_name.value }}"
+        dss_internal_ip: "{{ terraform.outputs.dss_internal_ip.value }}"
+        dss_public_proxy_ip: "{{ terraform.outputs.https_proxy_ip.value }}"
+        dss_service_username: "{{ terraform.outputs.dss_username.value }}"
+
+        # Other
+        dss_leaseweb_api_key: "{{ vault_dss_leaseweb_api_key }}"
+        dss_license_json: "{{ vault_dss_license_json }}"
+        dss_leaseweb_update_dns_record: true
+        dss_public_fqdn: "dataiku.azorion.com"
+        dss_user_bob_password: "{{ vault_dss_user_bob_password }}"
+        dss_user_jane_password: "{{ vault_dss_user_jane_password }}"

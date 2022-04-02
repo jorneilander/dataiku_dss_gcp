@@ -52,25 +52,25 @@
     state: started
     enabled: true
 
-- name: "[Docker] - Add '{{ dss_service_user }}' to group 'docker'"
+- name: "[Docker] - Add '{{ dss_service_username }}' to group 'docker'"
   become: true
   ansible.builtin.user:
-    name: "{{ dss_service_user }}"
+    name: "{{ dss_service_username }}"
     state: present
     groups: 'docker'
 
 - name: "[Docker] - Create docker config dir"
   become: true
-  become_user: "{{ dss_service_user }}"
+  become_user: "{{ dss_service_username }}"
   ansible.builtin.command:
-    cmd: mkdir -p ~/.docker
+    cmd: "mkdir -p {{ dss_config_sa_docker_config_json_path | dirname }}"
   changed_when: false
 
 - name: "[Docker] - Place docker config"
   become: true
-  become_user: "{{ dss_service_user }}"
+  become_user: "{{ dss_service_username }}"
   ansible.builtin.copy:
-    dest: "/home/{{ dss_service_user }}/.docker/config.json"
+    dest: "{{ dss_config_sa_docker_config_json_path }}"
     mode: 0755
     content: |
       {

@@ -2,46 +2,42 @@
 - name: "[GKE] - Install packages"
   become: true
   ansible.builtin.yum:
-    name: "{{ packages_gke }}"
+    name: "{{ dss_gke_req_packages }}"
     state: installed
-  vars:
-    packages_gke:
-      - "google-cloud-sdk"
-      - "kubectl"
 
 # I need a quick way to get kubeconfig in the correct location...
-- name: Get kubeconfig for our cluster
+- name: "[GKE] - Get kubeconfig for our cluster"
   become: true
-  become_user: "{{ dss_service_user }}"
+  become_user: "{{ dss_service_username }}"
   ansible.builtin.command:
     cmd: |
       gcloud container clusters
-      get-credentials {{ terraform_output.outputs.gke_dss_cluster_name.value }}
-      --zone {{ terraform_output.outputs.gcp_zone.value }}
-    creates: "/home/{{ dss_service_user }}/.kube/config"
+      get-credentials {{ dss_gke_cluster_name }}
+      --zone {{ dss_gcp_zone }}
+    creates: "{{ dss_config_sa_kube_config_path }}"
 
-- name: Read current configuration
+- name: "[GKE] - Read current 'general-settings' configuration"
   no_log: true
   become: true
-  become_user: "{{ dss_service_user }}"
+  become_user: "{{ dss_service_username }}"
   ansible.builtin.slurp:
-    path: "{{ dss_data_dirs_location }}/config/general-settings.json"
-  register: dss_general_settings_json_raw
+    path: "{{ dss_config_general_settings_json_path }}"
+  register: dss_config_general_settings_json_raw
 
-- name: Set containerSettings fact
+- name: "[GKE] - Set 'general-settings' fact"
   ansible.builtin.set_fact:
-    dss_general_settings_json: "{{ dss_general_settings_json_raw.content | b64decode | from_json }}"
+    dss_general_settings_json: "{{ dss_config_general_settings_json_raw.content | b64decode | from_json }}"
     dss_general_settings_container_settings:
       containerSettings:
         executionConfigs:
-          - name: dss
+          - name: DSS-GKE
             type: KUBERNETES
             properties: []
             usableBy: ALL
             allowedGroups: []
             dockerNetwork: host
             dockerResources: []
-            kubernetesNamespace: dss-ns-${dssUserLogin}
+            kubernetesNamespace: "{{ dss_k8s_namespace_template }}"
             kubernetesResources:
               memRequestMB: -1
               memLimitMB: -1
@@ -54,7 +50,7 @@
             ensureNamespaceCompliance: true
             createNamespace: true
             baseImageType: EXEC
-            repositoryURL: "{{ terraform_output.outputs.image_registry_url.value }}"
+            repositoryURL: "{{ dss_container_image_registry_url }}"
             prePushMode: NONE
             dockerTLSVerify: false
         defaultWebappsK8SExposition:
@@ -82,56 +78,57 @@
           dockerTLSVerify: false
     dss_general_settings_spark_kubernetes_settings:
       managedKubernetes: true
-      managedNamespace: dss-ns-${dssUserLogin}
+      managedNamespace: "{{ dss_k8s_namespace_template }}"
       authenticationMode: DYNAMIC_SERVICE_ACCOUNT
       ensureNamespaceCompliance: true
       createNamespace: true
       baseImageType: SPARK
-      repositoryURL: "{{ terraform_output.outputs.image_registry_url.value }}"
+      repositoryURL: "{{ dss_container_image_registry_url }}"
       prePushMode: NONE
       dockerTLSVerify: false
 
-- name: set fact
+- name: "[GKE] - Merge facts"
   ansible.builtin.set_fact:
-    dss_general_settings_container_new: "{{ dss_general_settings_json | combine (dss_general_settings_container_settings, recursive=true) }}"
+    dss_config_merged_general_settings_json: "{{ dss_general_settings_json | combine (dss_general_settings_container_settings, recursive=true) }}"
 
-- name: "[UIF] - Add group 'example_team' to users.json fact"
+- name: "[GKE] - Set Spark facts"
   ansible.builtin.set_fact:
-    dss_general_settings_container_new: >-
-      {%- set _ = dss_general_settings_container_new.sparkSettings.executionConfigs.0.__setitem__("kubernetesSettings", dss_general_settings_spark_kubernetes_settings) -%}
-      {{ dss_general_settings_container_new }}
+    dss_config_merged_general_settings_json: >-
+      {%- set _ = dss_config_merged_general_settings_json.sparkSettings.executionConfigs.0.__setitem__("kubernetesSettings", dss_general_settings_spark_kubernetes_settings) -%}
+      {{ dss_config_merged_general_settings_json }}
 
-- name: Copy over general-settings.json
+- name: "[GKE] - Place 'general-settings.json'"
   become: true
-  become_user: "{{ dss_service_user }}"
+  become_user: "{{ dss_service_username }}"
   ansible.builtin.copy:
-    dest: "{{ dss_data_dirs_location }}/config/general-settings.json"
+    dest: "{{ dss_config_general_settings_json_path }}"
     backup: true
-    content: "{{ dss_general_settings_container_new | to_nice_json }}"
+    content: "{{ dss_config_merged_general_settings_json | to_nice_json }}"
     mode: 0600
 
-- name: Set target host for GKE
+- name: "[GKE] - Set target host"
   become: true
-  become_user: "{{ dss_service_user }}"
+  become_user: "{{ dss_service_username }}"
   ansible.builtin.lineinfile:
-    path: /data/dataiku/bin/env-site.sh
-    line: "export DKU_BACKEND_EXT_HOST={{ terraform_output.outputs.dss_internal_ip.value }}"
+    path: "{{ dss_env_site_path }}"
+    line: "export DKU_BACKEND_EXT_HOST={{ dss_internal_ip }}"
+    regexp: '^export DKU_BACKEND_EXT_HOST='
 
 # !TODO: Fix these `changed_when`, we should be able to check using the command output or similar...
 - name: "[GKE] - Build 'container-exec' base image"
   become: true
-  become_user: "{{ dss_service_user }}"
+  become_user: "{{ dss_service_username }}"
   changed_when: false
   ansible.builtin.command:
     cmd: >-
-      {{ dss_data_dirs_location }}/bin/dssadmin build-base-image
+      {{ dss_dssadmin_path }} build-base-image
       --type container-exec
 
 - name: "[GKE] - Build 'spark' base image"
   become: true
-  become_user: "{{ dss_service_user }}"
+  become_user: "{{ dss_service_username }}"
   changed_when: false
   ansible.builtin.command:
     cmd: >-
-      {{ dss_data_dirs_location }}/bin/dssadmin build-base-image
+      {{ dss_dssadmin_path }} build-base-image
       --type spark

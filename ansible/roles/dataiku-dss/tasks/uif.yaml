@@ -63,40 +63,40 @@
 
 - name: "[UIF] - Set group 'example_team' fact"
   ansible.builtin.set_fact:
-    users_json_example_team: "{{ users_json | json_query(query) }}"
+    users_json_example_team: "{{ dss_config_users_json | json_query(query) }}"
   vars:
     query: "groups[?name=='example_team']"
 
 - name: "[UIF] - Add group 'example_team' to users.json fact"
   ansible.builtin.set_fact:
-    users_json: >-
-      {%- set _ = users_json.groups.append(dss_group_example_team) -%}
-      {{ users_json }}
+    dss_config_users_json: >-
+      {%- set _ = dss_config_users_json.groups.append(dss_group_example_team) -%}
+      {{ dss_config_users_json }}
   when: users_json_example_team | length == 0
 
 # Place final users.json
 
 - name: "[UIF] - Place users.json"
   become: true
-  become_user: "{{ dss_service_user }}"
+  become_user: "{{ dss_service_username }}"
   ansible.builtin.copy:
-    dest: "{{ dss_data_dirs_location }}/config/users.json"
+    dest: "{{ dss_config_users_json_path }}"
     backup: true
-    content: "{{ users_json | to_nice_json }}"
+    content: "{{ dss_config_users_json | to_nice_json }}"
     mode: 0600
   notify: restart_dss
 
 - name: "[UIF] - Check if impersonation is installed"
   become: true
-  become_user: "{{ dss_service_user }}"
+  become_user: "{{ dss_service_username }}"
   ansible.builtin.stat:
-    path: "{{ dss_data_dirs_location }}/IMPERSONATION-INSTALLED"
+    path: "{{ dss_data_dir }}/IMPERSONATION-INSTALLED"
   register: impersonation_installed
 
 - name: "[UIF] - Stop DSS"
   become: true
   ansible.builtin.service:
-    name: dataiku
+    name: "{{ dss_systemd_service_name }}"
     state: stopped
   when: impersonation_installed.stat.islnk is not defined
 
@@ -104,16 +104,16 @@
   become: true
   ansible.builtin.shell:
     cmd: >-
-      {{ dss_data_dirs_location }}/bin/dssadmin install-impersonation {{ dss_service_user }}
+      {{ dss_dssadmin_path }} install-impersonation {{ dss_service_username }}
       &&
-      touch {{ dss_data_dirs_location }}/IMPERSONATION-INSTALLED
-    creates: "{{ dss_data_dirs_location }}/IMPERSONATION-INSTALLED"
+      touch {{ dss_data_dir }}/IMPERSONATION-INSTALLED
+    creates: "{{ dss_data_dir }}/IMPERSONATION-INSTALLED"
   notify: restart_dss
 
 - name: "[UIF] - Find security-config.ini"
   become: true
   ansible.builtin.find:
-    paths: /etc/dataiku-security
+    paths: "{{ dss_security_config_dir }}"
     patterns: "*.ini"
     recurse: true
   register: find_security_config_ini

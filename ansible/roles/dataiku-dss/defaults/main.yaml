@@ -1,8 +1,83 @@
+---
+# Directory locations
+dss_install_dir: "{{ dss_install_target_dir }}/dataiku-dss-{{ dss_version }}"
+dss_install_script_dir: "{{ dss_install_dir }}/scripts/install/"
+dss_data_bin_dir: "{{ dss_data_dir }}/bin/"
+dss_config_dir: "{{ dss_data_dir }}/config/"
+dss_security_config_dir: /etc/dataiku-security
+
+# Script/binary paths
+dss_dssadmin_path: "{{ dss_data_bin_dir }}/dssadmin"
+dss_pip_path: "{{ dss_data_bin_dir }}/pip"
+
+dss_env_hadoop_path: "{{ dss_data_bin_dir }}/env-hadoop.sh"
+dss_env_spark_path: "{{ dss_data_bin_dir }}/env-spark.sh"
+dss_env_site_path: "{{ dss_data_bin_dir }}/env-site.sh"
+
+# DSS Config file paths
+dss_config_general_settings_json_path: "{{ dss_config_dir }}/general-settings.json"
+dss_config_users_json_path: "{{ dss_config_dir }}/users.json"
+dss_config_connections_json_path: "{{ dss_config_dir }}/connections.json"
+dss_config_license_path: "{{ dss_config_dir }}/license.json"
+
+# Service account config file paths
+dss_config_sa_kube_config_path: "/home/{{ dss_service_username }}/.kube/config"
+dss_config_sa_docker_config_json_path: "/home/{{ dss_service_username }}/.docker/config.json"
+
+# Endpoints & URLs
+dss_leaseweb_dns_api_endpoint: https://api.leaseweb.com/hosting/v2/domains/
 dss_cdn_url: "https://cdn.downloads.dataiku.com/public/studio/"
-dss_dssadmin_path: "{{ dss_data_dirs_location }}/bin/dssadmin"
+
+# DSS system configuration
+dss_systemd_service_name: dataiku
+
+dss_fs_data_type: ext4
+dss_fs_data_mount_path: /data
+
+# DSS package lists
+
+# Based on CentOS v8 / AlmaLinux, from:
+# https://doc.dataiku.com/dss/latest/installation/custom/initial-install.html
+dss_req_generic_packages:
+  - "acl"
+  - "expat"
+  - "freetype"
+  - "git"
+  - "java-1.8.0-openjdk"
+  - "libgfortran"
+  - "libgomp"
+  - "ncurses-compat-libs"
+  - "nginx"
+  - "python2"
+  - "python2-devel"
+  - "python36"
+  - "python36-devel"
+  - "unzip"
+  - "zip"
+
+dss_anaconda_req_packages:
+  - "alsa-lib"
+  - "bzip2"
+  - "libgomp"
+  - "libSM"
+  - "libXrender"
+  - "mesa-libGL"
+
+dss_r_req_packages:
+  - "libcurl-devel"
+  - "libicu-devel"
+  - "libxml2-devel"
+  - "openssl-devel"
+  - "R-core-devel"
+
+dss_gke_req_packages:
+  - "google-cloud-sdk"
+  - "kubectl"
+
+# DSS instance configuration
 dss_uif_groups:
-  - data_team
-  - example_team
+  - "data_team"
+  - "example_team"
 
 dss_group_example_team:
   name: example_team
@@ -31,3 +106,22 @@ dss_group_example_team:
   mayCreateWorkspaces: false
   mayShareToWorkspaces: true
   canObtainAPITicketFromCookiesForGroupsRegex: ""
+
+dss_example_user_base:
+  groups:
+    - data_team
+    - example_team
+  sourceType: LOCAL
+  userProfile: DATA_SCIENTIST
+  enabled: true
+  credentials: {}
+  adminProperties: {}
+  userProperties: {}
+  npsSurveySettings:
+    state: INITIAL
+    nextAction: 1651262785624
+  atSurveySettings:
+    state: INITIAL
+    surveys: {}
+    nextAction: 0
+  secrets: []
