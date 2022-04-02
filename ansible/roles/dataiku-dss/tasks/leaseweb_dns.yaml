@@ -1,15 +1,12 @@
 ---
 - name: "[DNS] - Update dataiku.azorion.com record"
   ansible.builtin.uri:
-    url: https://api.leaseweb.com/hosting/v2/domains/azorion.com/resourceRecordSets
+    url: "{{ dss_leaseweb_dns_api_endpoint }}/{{ dss_public_fqdn.split('.')[-2:] | join('.')  }}/resourceRecordSets/{{ dss_public_fqdn }}./A"
     method: PUT
     body_format: json
     headers:
-      x-lsw-auth: "{{ leaseweb_api_key }}"
+      x-lsw-auth: "{{ dss_leaseweb_api_key }}"
     body:
-      resourceRecordSets:
-        - name: "dataiku.azorion.com"
-          type: A
-          content:
-            - "{{ terraform_output.outputs.https_proxy_ip.value }}"
-          ttl: 60
+      content:
+        - "{{ dss_public_proxy_ip }}"
+      ttl: 60
