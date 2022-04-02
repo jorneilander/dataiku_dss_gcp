@@ -1,14 +1,8 @@
 ---
-- name: "[Prerequisites] - Set per-host facts"
-  ansible.builtin.set_fact:
-    dss_node_hostname: "{{ ansible_fqdn if dss_node_poll_fqdn else ansible_host }}"
-  tags: [setup, dss-setup, dss]
-
 - name: "[Prerequisites] - Disable SELinux"
   become: true
   selinux:
     state: disabled
-  tags: [setup]
   notify:
     - "restart_host"
 
@@ -22,7 +16,6 @@
   loop:
     - nofile
     - nproc
-  tags: [setup]
 
 - name: "[Prerequisites] - Update all packages"
   become: true
@@ -30,7 +23,6 @@
     name: "*"
     state: latest
     update_cache: true
-  tags: [setup]
 
 - name: "[Prerequisites] - Install required packages"
   become: true
@@ -73,7 +65,6 @@
   ansible.builtin.user:
     name: "{{ dss_service_username }}"
     state: present
-  tags: [setup, dss-setup]
 
 - name: "[Prerequisites] - Format DSS Data filesystem"
   become: true
@@ -97,7 +88,6 @@
     state: directory
     owner: "{{ dss_service_username }}"
     mode: 0711
-  tags: [setup, dss-setup]
 
 - name: "[Prerequisites] - Create private directories"
   become: true
@@ -106,4 +96,3 @@
     state: directory
     owner: "{{ dss_service_username }}"
     mode: 0711
-  tags: [setup, dss-setup]

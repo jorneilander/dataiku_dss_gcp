@@ -1,7 +1,4 @@
 ---
-- name: "[Main] - Run Terraform to get 'outputs'"
-  ansible.builtin.include_tasks: "terraform.yaml"
-
 - name: "[Main] - Update DNS entry"
   ansible.builtin.include_tasks: "leaseweb_dns.yaml"
   when: dss_leaseweb_update_dns_record

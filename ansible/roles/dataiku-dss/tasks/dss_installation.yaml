@@ -6,7 +6,6 @@
     url: "{{ dss_cdn_url }}/{{ dss_version }}/{{ item }}.tar.gz"
     dest: "{{ dss_install_target_dir }}/{{ item }}.tar.gz"
     mode: 0660
-  tags: [setup, dss-setup]
   loop:
     - "dataiku-dss-{{ dss_version }}"
     - "dataiku-dss-hadoop-standalone-libs-generic-hadoop3-{{ dss_version }}"
@@ -20,7 +19,6 @@
     dest: "{{ dss_install_target_dir }}"
     creates: "{{ dss_install_target_dir }}/{{ item }}"
     remote_src: true
-  tags: [setup, dss-setup]
   loop:
     - "dataiku-dss-{{ dss_version }}"
 
