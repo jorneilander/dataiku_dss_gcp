@@ -62,3 +62,4 @@
     backup: true
     content: "{{ dss_config_merged_connections_json | to_nice_json }}"
     mode: 0644
+  notify: restart_dss
