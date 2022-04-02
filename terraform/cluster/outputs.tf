@@ -29,5 +29,27 @@ output "gcp_zone" {
 }
 
 output "https_proxy_ip" {
+  description = "Public IP-address of the HTTPS-proxy"
   value = google_compute_global_forwarding_rule.https_proxy_forwarding_rule.ip_address
+}
+
+output "dss_username" {
+  description = "Username of DSS instance service account"
+  value = google_service_account.dssuser_service_account.account_id
+  # value = google_compute_instance.dss_instance.service_account
+}
+
+output "gcp_project_id" {
+  description = "GCP Project ID"
+  value = local.project
+}
+
+output "gcs_bucket" {
+  description = "GCS Storage bucket"
+  value = google_storage_bucket.dss_storage_bucket.name
+}
+
+output "private_key_file" {
+  description = "GCP user service account's private SSH-key file path"
+  value = "${path.cwd}/${local_file.ssh_private_key_pem.filename}"
 }
