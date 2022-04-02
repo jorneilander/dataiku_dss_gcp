@@ -1,0 +1,13 @@
+---
+- name: "[UIF] - Read users.json"
+  no_log: true
+  become: true
+  become_user: "{{ dss_service_username }}"
+  ansible.builtin.slurp:
+    path: "{{ dss_config_users_json_path }}"
+  register: dss_config_users_json_raw
+
+- name: "[UIF] - Set users.json fact"
+  no_log: true
+  ansible.builtin.set_fact:
+    dss_config_users_json: "{{ dss_config_users_json_raw.content | b64decode | from_json }}"

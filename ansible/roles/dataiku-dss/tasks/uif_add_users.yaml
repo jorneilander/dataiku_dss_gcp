@@ -1,0 +1,60 @@
+---
+- name: "[UIF] - Create users"
+  become: true
+  ansible.builtin.user:
+    name: "{{ item.username }}"
+    shell: "/bin/bash"
+    create_home: true
+    groups: "{{ dss_uif_groups }}"
+
+- name: "[UIF] - Read users.json"
+  ansible.builtin.include_tasks: "uif_read_users_json.yaml"
+
+- name: "[UIF] - Get user '{{ item.username }}' fact from users.json "
+  ansible.builtin.set_fact:
+    users_json_user: "{{ dss_config_users_json | json_query(query) }}"
+  vars:
+    query: "users[?login=='{{ item.username }}']"
+
+- name: "[UIF] - Add user '{{ item.username }}' to users.json"
+  block:
+    - name: "[UIF] - Set user '{{ item.username }}' dict"
+      ansible.builtin.set_fact:
+        dss_new_user:
+          login: "{{ item.username }}"
+          displayName: "{{ item.name }}"
+          groups:
+            - data_team
+            - example_team
+          sourceType: LOCAL
+          userProfile: DATA_SCIENTIST
+          enabled: true
+          credentials: {}
+          adminProperties: {}
+          userProperties: {}
+          password: "{{ item.password }}"
+          npsSurveySettings:
+            state: INITIAL
+            nextAction: 1651262785624
+          atSurveySettings:
+            state: INITIAL
+            surveys: {}
+            nextAction: 0
+          secrets: []
+
+    - name: "[UIF] - Add user '{{ item.username }}' to new users.json fact"
+      ansible.builtin.set_fact:
+        dss_config_users_json: >-
+          {%- set _ = dss_config_users_json.users.append(dss_new_user) -%}
+          {{ dss_config_users_json }}
+
+    - name: "[UIF] - Place new users.json"
+      become: true
+      become_user: "{{ dss_service_username }}"
+      ansible.builtin.copy:
+        dest: "{{ dss_config_users_json_path }}"
+        backup: true
+        content: "{{ dss_config_users_json | to_nice_json }}"
+        mode: 0600
+      notify: restart_dss
+  when: users_json_user | length == 0
