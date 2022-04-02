@@ -24,39 +24,33 @@
     state: latest
     update_cache: true
 
+- name: "[Prerequisites] - Install EPEL"
+  become: true
+  ansible.builtin.yum:
+    name: "epel-release"
+
+- name: "Prerequisites - Enable Powertools for R"
+  become: true
+  changed_when: false
+  ansible.builtin.shell:
+    cmd: >-
+      yum config-manager --enable powertools &&
+      yum config-manager --enable powertools-source
+
+- name: "[Prerequisites] - Set package list"
+  ansible.builtin.set_fact:
+    dss_package_list: >-
+      {{ dss_req_generic_packages
+          + (dss_anaconda_req_packages if dss_support_anaconda else [])
+          + (dss_r_req_packages if dss_support_r else [])
+          + dss_yum_additional_packages }}
+
 - name: "[Prerequisites] - Install required packages"
   become: true
   ansible.builtin.yum:
-    name: "{{ packages }}"
-  vars:
-    packages:
-      - acl
-      - expat
-      - git
-      - nginx
-      - unzip
-      - zip
-      - ncurses-compat-libs
-      - java-1.8.0-openjdk
-      - python2
-      - python36
-      - freetype
-      - libgfortran
-      - libgomp
-      - python2-devel
-      - python36-devel
-      - "google-cloud-sdk"
-      - "kubectl"
-      - "epel-release"
-
-- name: "[Prerequisites] - Install optional packages from epel"
-  become: true
-  ansible.builtin.yum:
-    name: "{{ packages }}"
-  vars:
-    packages:
-      - "htop"
-
+    name: "{{ dss_package_list }}"
+    state: present
+    update_cache: true
 
 # User stuff
 
