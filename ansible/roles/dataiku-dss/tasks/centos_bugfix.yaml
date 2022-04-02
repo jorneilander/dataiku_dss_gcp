@@ -1,5 +1,6 @@
 ---
 - name: "[Bugfix] - Delete 'which2.sh' from profiles.d (it breaks Jupyter notebooks in K8S)"
+  become: true
   ansible.builtin.file:
     path: /etc/profile.d/which2.sh
     state: absent
