@@ -5,16 +5,9 @@
 # }
 
 resource "google_compute_target_https_proxy" "https_proxy_dss" {
-  depends_on = [
-    google_compute_managed_ssl_certificate.https_proxy_cert,
-    google_compute_url_map.all,
-    google_compute_ssl_policy.compatible_ssl_policy
-
-  ]
-
   name             = "dss-https-proxy"
   url_map          = google_compute_url_map.all.id
-  ssl_policy       = google_compute_ssl_policy.compatible_ssl_policy.self_link
+  # ssl_policy       = google_compute_ssl_policy.compatible_ssl_policy.self_link
   ssl_certificates = [google_compute_managed_ssl_certificate.https_proxy_cert.self_link]
 
 }
